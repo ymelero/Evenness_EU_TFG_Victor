@@ -48,6 +48,17 @@ count_year <- count %>%
   group_by(SITE_ID, SPECIES, YEAR) %>%
   summarise(COUNT = sum(count, na.rm = TRUE))
 
-# YM TO CHECK WHY cpunts_year HAS LESS ROWS THAT 
+# YM TO CHECK WHY counts_year HAS LESS ROWS THAT SINDEX. dups?
 
+
+# Merge DBs, add colums of counts and of failed:
+sindex_eu <- sindex_eu %>%
+  full_join(count_year, by = c("SITE_ID","SPECIES","YEAR")) %>%
+  mutate(
+    COUNT  = replace_na(COUNT, 0),
+    FAILED = ifelse(COUNT > 0 & is.na(SINDEX), "failed", "ok")
+  )
+
+# YM TO CHECK: There are some sindex 0s ==> ok (Not failed) pero que tienen conteos NO zero!! ==> NEEDS TO BE CORRECTED
+plot(sindex_full$SINDEX, sindex_full$COUNT)
 # este va a ser el mejor TFG ever
