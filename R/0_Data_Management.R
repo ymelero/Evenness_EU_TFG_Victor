@@ -24,5 +24,6 @@ path <- "/Volumes/GoogleDrive/My Drive/DATA/s-indexes_ebms_Until2023" #YM comput
 # bind all files
 list.files(path, pattern="\\.csv$", full.names=TRUE) 
 Db <- rbindlist(lapply(list.files(path, pattern="\\.csv$", full.names=TRUE), fread))
+write.table(Db, "Data/Db_sindex_all.txt", row.names = F)
 
 # este va a ser el mejor TFG ever
