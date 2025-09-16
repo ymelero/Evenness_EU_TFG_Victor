@@ -31,7 +31,7 @@ library(tidyverse)
 sindex_eu <- read.delim("Data/Db_sindex_all.txt", sep=";")
 
 ## 2.2 eBMS raw count data. To merge with s-index and detect those that failed
-count <- read.csv2("Data/ebms_uBMS_count_2023.txt", sep=";")[, 3:9]
+count <- read.csv2("Data-/ebms_uBMS_count_2023.txt", sep=";")[, 3:9]
 
 ## 2.3 merge (unir) las DBs filling those that were count but there is no info on s-index
 # columns to be merged, need to have same names:
@@ -68,9 +68,10 @@ sindex_eu <- sindex_eu %>%
  #2. Check outliers: very high counts with very low sindex and vice versa*
 plot(sindex_eu$COUNT,sindex_eu$SINDEX)
 plot(sindex_eu$COUNT,sindex_eu$SINDEX, xlim = c(0,10000), ylim=c(0,50000)) 
- # outliers in sindex high values
+abline(h = 20000, col = "red", lty = 2)
+# outliers in sindex high values
 check1<- sindex_eu %>% #inf de DE, los demás casi todos BMS Vasco
-  filter(SINDEX > 10000, COUNT > 0, COUNT < 10000) %>%
+  filter(SINDEX > 20000, COUNT > 0, COUNT < 10000) %>% #values based on the plot (observational). There are no sindex outliers with COUNT > 10K
   arrange(desc(SINDEX))
 # outliers in sindex low values, high count values
 plot(sindex_eu$COUNT, sindex_eu$SINDEX, ylim = c(0,100))
@@ -82,4 +83,26 @@ check2 <- sindex_eu %>%
 
 # Criteria to deal with outliers
  #1. Check 1=> categorised them all as failed, and then infer from extrapolation. Do not remove => you remove species from the community. Unless the entire site / year is removed
- #2. Check 2=> outliers are all already categorised as failure. To be exptrapolated
+ #2. Check 2=> outliers are all already categorised as failure. To be extrapolated
+sindex_eu <- sindex_eu %>%
+  mutate(
+    SUCCESS = ifelse(SUCCESS == "ok" & SINDEX > 20000 & COUNT > 0 & COUNT < 10000,
+                     "failed", SUCCESS)
+  )
+with(subset(sindex_eu, SUCCESS == "ok"),
+    plot(COUNT, SINDEX))
+
+# 3. Extrapolate FAILED SINDEX  -----------------------------------------------------------
+
+# criteria for extrapolating:
+# 1 - max count of fail < max count of success
+# 2 - r2 of the model good enough (>0.6)
+
+# so, for each sp-site-year with fails
+# 1 - check condition 1 above
+# 2 - create linear(?) model using sp-site (all years)
+# 3 - get r2 and check condition 2 above
+# 4 - if fails, create new linear(?) model using sp-region (combo GEO_REGION & RCLIM) (that year?)
+# 3 - get r2 and check condition 2 above
+
+
