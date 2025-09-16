@@ -2,8 +2,8 @@
 # SCRIPT TO PREPARE THE DATA: S-index (avaiable) - missing species counts / site / year
 # Author: [Papallones Urbanitas Team: YM, DGC]
 # Inputs:
-#   - eBMS counts
-#   - eBMS s-index
+#   - eBMS counts with uBMs included. The data comes from the schemes, the code to merge them and to calculate:
+#   - eBMS s-index, the code (as above) is in: Gdrive>PROJECTS_DOING>SATURNO>URBAN TRENDS. Also in GitHUb (less complete and no data)
 # Outputs:
 #   - DB combined: S-index, counts, failed species - rows
 # -------------------------------------------------------------------------
