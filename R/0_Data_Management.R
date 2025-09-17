@@ -7,7 +7,7 @@
 #   - eBMS counts with uBMs included. The data comes from the schemes, the code to merge them and to calculate:
 #   - eBMS s-index, the code (as above) is in: Gdrive>PROJECTS_DOING>SATURNO>URBAN TRENDS. Also in GitHUb (less complete and no data)
 # Outputs:
-#   - DB combined: S-index, counts, failed species - rows
+#   - DB combined: S-index, counts, failed species - rows & extrapolated S-index.
 # -------------------------------------------------------------------------
 
 # 1. LIBRARIES & SETUP ---------------------------------------------------
@@ -28,7 +28,7 @@ library(tidyverse)
 # sindex_eu <- rbindlist(lapply(list.files(path, pattern="\\.csv$", full.names=TRUE), fread))
 # write.table(sindex_eu, "Data/Db_sindex_all.txt", row.names = F, sep=";")
 # once done you can directly read the DB from your local folder:
-sindex_eu <- read.delim("Data/Db_sindex_all.txt", sep=";")
+sindex_eu <- read.delim("Data-/Db_sindex_all.txt", sep=";")
 
 ## 2.2 eBMS raw count data. To merge with s-index and detect those that failed
 count <- read.csv2("Data-/ebms_uBMS_count_2023.txt", sep=";")[, 3:9]
@@ -45,27 +45,33 @@ count <- count %>%
     YEAR      = year   
   )
 
-# calculate counts per species, site and year (now they are by week) in the counts DBå
+# calculate counts per species, site and year (now they are by week) in the counts DB
 count_year <- count %>%
   group_by(SITE_ID, SPECIES, YEAR) %>%
   summarise(COUNT = sum(COUNT, na.rm = TRUE))
 
 
 # Merge DBs, add colums of counts and of failed:
+# criteria for removing / failed:
+ # 1 - Removed sindex == 0 & count NA, since it means absence.
+ # 2 - Set as failed if sindex == NA | 0 | Inf & count > 0, since it means absence.
 sindex_eu <- sindex_eu %>%
   full_join(count_year, by = c("SITE_ID","SPECIES","YEAR")) %>%
   mutate(
     SUCCESS = ifelse((is.na(SINDEX) & COUNT > 0) |
                        (SINDEX == 0 & COUNT > 0) |
-                       is.infinite(SINDEX),
+                       (is.infinite(SINDEX) & COUNT > 0),
                      "failed", "ok")
-  )
+  ) %>%
+  filter(!(is.na(COUNT) & SINDEX == 0)) # since it implies the species was absent (not detected) in the site-year
 
 ## 2.4 Check results of sindex-counts to look for potential errors 
-# YM checked: all count that == NA s-index is zero (as it should be), al sindex that are == NA , have counts (==> are those that failed)
-# TBDecided:
- #1. Remove sindex == 0, means absence.
- #2. Check outliers: very high counts with very low sindex and vice versa*
+
+# Criteria for outliers:
+ # 1 - High sindexes values from non count's outliers => set as failed (see checks below). Visual limit set in Sindex > 20000 (lineal correlation lost there)
+ # 2 - High count data: 2.1: remove sites with clear visual outliers (check2) COUNTS > 10000. The rest are already set as failed bc sindex = 0
+
+# YM raw Checks s.indexes' outliers: very high counts with very low sindex and vice versa
 plot(sindex_eu$COUNT,sindex_eu$SINDEX)
 plot(sindex_eu$COUNT,sindex_eu$SINDEX, xlim = c(0,10000), ylim=c(0,50000)) 
 abline(h = 20000, col = "red", lty = 2)
@@ -78,31 +84,33 @@ plot(sindex_eu$COUNT, sindex_eu$SINDEX, ylim = c(0,100))
 with(subset(sindex_eu, SUCCESS == "ok"),
      plot(COUNT, SINDEX, xlim=c(0,200), ylim = c(0,100)))
 check2 <- sindex_eu %>%
-  filter(SUCCESS == "ok", SINDEX < 10, COUNT > 0, COUNT < 20) %>%
-  arrange(desc(SINDEX)) # todas las raras son failed already
+  filter(SINDEX < 1, COUNT > 9000) %>%  # todas las raras son failed already
+  arrange(desc(COUNT)) 
 
-# Criteria to deal with outliers
- #1. Check 1=> categorised them all as failed, and then infer from extrapolation. Do not remove => you remove species from the community. Unless the entire site / year is removed
- #2. Check 2=> outliers are all already categorised as failure. To be extrapolated
+# Apply criteria for outliers
 sindex_eu <- sindex_eu %>%
-  mutate(
-    SUCCESS = ifelse(SUCCESS == "ok" & SINDEX > 20000 & COUNT > 0 & COUNT < 10000,
-                     "failed", SUCCESS)
-  )
-with(subset(sindex_eu, SUCCESS == "ok"),
+  mutate(SUCCESS = ifelse(SUCCESS == "ok" & SINDEX > 20000 & COUNT < 10000, # criteria 1
+                     "failed", SUCCESS)) %>%
+  filter(!SITE_ID %in% SITE_ID[SINDEX < 1 & COUNT > 10000]) # criteria 2
+
+with(subset(sindex_eu_sucess, SUCCESS == "ok"),
     plot(COUNT, SINDEX))
+
 
 # 3. Extrapolate FAILED SINDEX  -----------------------------------------------------------
 
+# DB: sindex_eu
 # criteria for extrapolating:
-# 1 - max count of fail < max count of success
-# 2 - r2 of the model good enough (>0.6)
+# 1 - max count of fail < max count of success: REVISAR SITE 
+# 2 - r2 of the model good enough (>0.7)
 
 # so, for each sp-site-year with fails
 # 1 - check condition 1 above
-# 2 - create linear(?) model using sp-site (all years)
+# 2 - create linear model using sp-site (all years)
 # 3 - get r2 and check condition 2 above
-# 4 - if fails, create new linear(?) model using sp-region (combo GEO_REGION & RCLIM) (that year?)
-# 3 - get r2 and check condition 2 above
-
+# 4 - if fails, create new linear model using sp-region that year (combo GEO_REGION & RCLIM) 
+# 5 - get r2 and check condition 2 above
+# 6 - if fails, create new linear model using sp-region all years (combo GEO_REGION & RCLIM) 
+# 7 - get r2 and check condition 2 above
+# 8 - condition 1 above or 1-8 do not work => remove site for all sp and years?? 
 
