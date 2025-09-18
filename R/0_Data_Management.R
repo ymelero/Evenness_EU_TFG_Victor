@@ -20,14 +20,12 @@ library(tidyverse)
 # 2. eBMS DATA -----------------------------------------------------------
 
 ## 2.1 eBMS s-index data. per species, site, year. Calculated following Colom et al 2025
-# Give the path to the data, load them all and create an unique DB. 
-path <- "/home/david/trabajo/projects/BCN/butterfly_ebms_data/" #YM computer
 
-# bind all files
-# list.files(path, pattern="\\.csv$", full.names=TRUE) 
-# sindex_eu <- rbindlist(lapply(list.files(path, pattern="\\.csv$", full.names=TRUE), fread))
-# write.table(sindex_eu, "Data/Db_sindex_all.txt", row.names = F, sep=";")
-# once done you can directly read the DB from your local folder:
+# **** NOTE: change the "path" to where the data is stored in your computer *****
+
+# path <- "/Users/SUITCASE/Downloads/sindex_results/" #YM computer
+path <- "/home/david/trabajo/projects/BCN/butterfly_ebms_data/" #DGC computer
+
 sindex_eu <- read.delim(paste0(path,"Db_sindex_all.txt"),sep=";")
 
 ## 2.2 eBMS raw count data. To merge with s-index and detect those that failed
